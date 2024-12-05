@@ -3189,7 +3189,8 @@ static Bool dis_RV64Zicsr(/*MB_OUT*/ DisResult* dres,
       UInt funct3 = INSN(14, 12);
       UInt rs1    = INSN(19, 15);
       UInt csr    = INSN(31, 20);
-      if ((funct3 != 0b001 && funct3 != 0b010 && funct3 != 0b011) ||
+      UInt imm4_0 = rs1;
+      if (funct3 == 0b000 || funct3 == 0b100 ||
           (csr != 0x001 && csr != 0x002 && csr != 0x003)) {
          /* Invalid CSRR{W,S,C}, fall through. */
       } else {
@@ -3218,6 +3219,18 @@ static Bool dis_RV64Zicsr(/*MB_OUT*/ DisResult* dres,
                expr = binop(Iop_And32, mkexpr(fcsr),
                             unop(Iop_Not32, binop(Iop_And32, getIReg32(rs1),
                                                   mkU32(0x1f))));
+               break;
+            case 0b101:
+               expr = binop(Iop_Or32,
+                            binop(Iop_And32, mkexpr(fcsr), mkU32(0xffffffe0)),
+                            mkU32(imm4_0));
+               break;
+            case 0b110:
+               expr = binop(Iop_Or32, mkexpr(fcsr), mkU32(imm4_0));
+               break;
+            case 0b111:
+               expr = binop(Iop_And32, mkexpr(fcsr),
+                            unop(Iop_Not32, mkU32(imm4_0)));
                break;
             default:
                vassert(0);
@@ -3258,6 +3271,26 @@ static Bool dis_RV64Zicsr(/*MB_OUT*/ DisResult* dres,
                                    binop(Iop_And32, getIReg32(rs1), mkU32(0x7)),
                                    mkU8(5))));
                break;
+            case 0b101:
+               expr = binop(
+                  Iop_Or32, binop(Iop_And32, mkexpr(fcsr), mkU32(0xffffff1f)),
+                  binop(Iop_Shl32, binop(Iop_And32, mkU32(imm4_0), mkU32(0x7)),
+                        mkU8(5)));
+               break;
+            case 0b110:
+               expr = binop(Iop_Or32, mkexpr(fcsr),
+                            binop(Iop_Shl32,
+                                  binop(Iop_And32, mkU32(imm4_0), mkU32(0x7)),
+                                  mkU8(5)));
+               break;
+            case 0b111:
+               expr =
+                  binop(Iop_And32, mkexpr(fcsr),
+                        unop(Iop_Not32,
+                             binop(Iop_Shl32,
+                                   binop(Iop_And32, mkU32(imm4_0), mkU32(0x7)),
+                                   mkU8(5))));
+               break;
             default:
                vassert(0);
             }
@@ -3285,6 +3318,16 @@ static Bool dis_RV64Zicsr(/*MB_OUT*/ DisResult* dres,
                             unop(Iop_Not32, binop(Iop_And32, getIReg32(rs1),
                                                   mkU32(0xff))));
                break;
+            case 0b101:
+               expr = mkU32(imm4_0);
+               break;
+            case 0b110:
+               expr = binop(Iop_Or32, mkexpr(fcsr), mkU32(imm4_0));
+               break;
+            case 0b111:
+               expr = binop(Iop_And32, mkexpr(fcsr),
+                            unop(Iop_Not32, mkU32(imm4_0)));
+               break;
             default:
                vassert(0);
             }
@@ -3305,6 +3348,15 @@ static Bool dis_RV64Zicsr(/*MB_OUT*/ DisResult* dres,
             break;
          case 0b011:
             name = "csrrc";
+            break;
+         case 0b101:
+            name = "csrrwi";
+            break;
+         case 0b110:
+            name = "csrrsi";
+            break;
+         case 0b111:
+            name = "csrrci";
             break;
          default:
             vassert(0);
